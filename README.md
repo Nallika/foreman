@@ -1,10 +1,4 @@
-# foreman — Project Context
-
-> **Version**: 0.1.0
-> **Runtime**: Node.js 20+ / TypeScript / ESM
-> **Platform**: Linux (Ubuntu / Raspberry Pi 5)
-
-## What is foreman?
+# foreman
 
 `foreman` is a CLI-centric task orchestration runner that executes multi-stage development plans using the **Antigravity CLI (`agy`)**. It processes a structured task queue (`tasks.json`) and a shared architectural context (`CONTEXT.md`), spawning isolated `agy` processes per task with full logging, verification, and abort-on-failure semantics.
 
