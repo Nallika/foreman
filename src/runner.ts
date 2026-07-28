@@ -6,7 +6,7 @@
  * signal forwarding from the parent foreman process.
  */
 
-import { execa, type ResultPromise } from 'execa';
+import { execa } from 'execa';
 import { createInterface } from 'node:readline';
 import type { TaskLogger } from './logger.js';
 

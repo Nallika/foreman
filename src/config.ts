@@ -21,6 +21,8 @@ export interface Config {
   timeout: number;
   /** Validate everything, print prompts, skip spawning agy */
   dryRun: boolean;
+  /** Continue a previous run. If true, picks latest. If string, picks specific runId. */
+  continue?: boolean | string;
 }
 
 // ---------------------------------------------------------------------------
@@ -70,6 +72,10 @@ export function parseConfig(argv: string[] = process.argv): Config {
       '--dry-run',
       'Validate everything, print prompts, skip spawning agy',
       false,
+    )
+    .option(
+      '--continue [run-id]',
+      'Continue a previous run. If no run-id is specified, the latest run is used.',
     );
 
   program.parse(argv);
@@ -79,6 +85,7 @@ export function parseConfig(argv: string[] = process.argv): Config {
     context: string;
     timeout: number;
     dryRun: boolean;
+    continue?: boolean | string;
   }>();
 
   return {
@@ -86,5 +93,6 @@ export function parseConfig(argv: string[] = process.argv): Config {
     contextPath: resolve(opts.context),
     timeout: opts.timeout,
     dryRun: opts.dryRun,
+    continue: opts.continue,
   };
 }

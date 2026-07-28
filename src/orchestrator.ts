@@ -39,8 +39,10 @@ export interface JobContext {
 export async function runJob(ctx: JobContext): Promise<void> {
   const { config, tasksFile, cwd } = ctx;
 
-  // Initialize run
-  const queue = await QueueManager.initRun(tasksFile, cwd);
+  // Initialize or resume run
+  const queue = config.continue
+    ? await QueueManager.resumeRun(tasksFile, cwd, config.continue)
+    : await QueueManager.initRun(tasksFile, cwd);
   const runLogger = new RunLogger(queue.logsDir);
   const hooks = new HookManager();
   const dashboard = new Dashboard({
@@ -50,7 +52,8 @@ export async function runJob(ctx: JobContext): Promise<void> {
     logsDir: queue.logsDir,
   });
 
-  dashboard.start();
+  const completedSoFar = queue.getState().tasks.filter(t => t.status === 'success').length;
+  dashboard.start(completedSoFar);
 
   await hooks.fire('onRunnerStart', {
     jobId: tasksFile.jobId,
@@ -122,7 +125,6 @@ export async function runJob(ctx: JobContext): Promise<void> {
         durationMs,
       });
 
-      await queue.abortRemaining();
       break;
     }
 
@@ -145,7 +147,6 @@ export async function runJob(ctx: JobContext): Promise<void> {
       dashboard.taskFailure(task.id, durationMs, errorMsg);
       await hooks.fire('onTaskFailure', { task, error: errorMsg, durationMs });
 
-      await queue.abortRemaining();
       break;
     }
 

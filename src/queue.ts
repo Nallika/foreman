@@ -5,8 +5,9 @@
  * the state.json lifecycle throughout the execution loop.
  */
 
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
+import { execaCommand } from 'execa';
 import type { Task, TasksFile, RunState, TaskState, TaskStatus } from './types.js';
 
 // ---------------------------------------------------------------------------
@@ -85,6 +86,68 @@ export class QueueManager {
     return queue;
   }
 
+  /**
+   * Resume a previous run: locate its state.json, reset pending/failed tasks,
+   * verify commits of successful tasks, and return the queue manager.
+   */
+  static async resumeRun(
+    tasksFile: TasksFile,
+    baseDir: string,
+    runIdParam?: string | boolean,
+  ): Promise<QueueManager> {
+    const runsDir = join(baseDir, 'foreman', 'runs');
+    let runId = typeof runIdParam === 'string' ? runIdParam : '';
+
+    if (!runId) {
+      // Find the latest run
+      const entries = await readdir(runsDir, { withFileTypes: true });
+      const runDirs = entries
+        .filter((e) => e.isDirectory() && e.name.startsWith('run-'))
+        .map((e) => e.name);
+
+      if (runDirs.length === 0) {
+        throw new Error('No previous runs found to continue.');
+      }
+      runDirs.sort((a, b) => b.localeCompare(a)); // sort descending
+      runId = runDirs[0];
+    }
+
+    const queue = new QueueManager(tasksFile, baseDir, runId);
+    
+    // Load existing state
+    const existingStateRaw = await readFile(queue.statePath, 'utf-8');
+    const existingState = JSON.parse(existingStateRaw) as RunState;
+
+    if (existingState.jobId !== tasksFile.jobId) {
+      throw new Error(`Cannot continue run ${runId}: Job ID mismatch.`);
+    }
+
+    // Pre-check commits and reset incomplete tasks
+    for (const task of existingState.tasks) {
+      if (task.status === 'success' && task.commitHash) {
+        try {
+          await execaCommand(`git cat-file -e ${task.commitHash}`, { cwd: baseDir });
+        } catch {
+          throw new Error(`Pre-check failed: Commit ${task.commitHash} for task ${task.id} does not exist in the repository. Avoid snowball errors!`);
+        }
+      } else {
+        // Reset non-success tasks to pending
+        task.status = 'pending';
+        task.startedAt = null;
+        task.finishedAt = null;
+        task.durationMs = null;
+        task.commitHash = null;
+        task.error = null;
+      }
+    }
+
+    existingState.status = 'running';
+    queue.state = existingState;
+    await queue.persistState();
+
+    return queue;
+  }
+
   // -------------------------------------------------------------------------
   // Public API
   // -------------------------------------------------------------------------
@@ -137,19 +200,6 @@ export class QueueManager {
   }
 
   /**
-   * Mark all remaining `pending` tasks as `aborted`.
-   * Called when a task fails or times out to prevent cascading errors.
-   */
-  async abortRemaining(): Promise<void> {
-    for (const task of this.state.tasks) {
-      if (task.status === 'pending') {
-        task.status = 'aborted';
-      }
-    }
-    await this.persistState();
-  }
-
-  /**
    * Finalize the run: set `finishedAt` and determine overall status.
    * - `success` if all tasks succeeded
    * - `failed` if any task failed, timed out, or was aborted
@@ -190,6 +240,7 @@ export class QueueManager {
   }
 
   private async persistState(): Promise<void> {
+    await mkdir(this.runDir, { recursive: true });
     await writeFile(
       this.statePath,
       JSON.stringify(this.state, null, 2) + '\n',

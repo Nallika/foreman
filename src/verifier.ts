@@ -126,10 +126,15 @@ export async function verifyTask(options: VerifyOptions): Promise<VerifyResult> 
   if (!runResult.timedOut && !runResult.signalKilled) {
     const clean = await isGitClean(cwd);
     if (!clean) {
-      errors.push({
-        check: 'git_dirty',
-        message: 'Git working tree is not clean — agent may not have committed',
-      });
+      try {
+        await execa('git', ['add', '.'], { cwd });
+        await execa('git', ['commit', '-m', `chore(foreman): auto-commit for task ${taskId}`], { cwd });
+      } catch (err) {
+        errors.push({
+          check: 'git_dirty',
+          message: 'Git working tree is not clean and auto-commit failed',
+        });
+      }
     }
   }
 

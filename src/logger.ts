@@ -33,8 +33,8 @@ const STDOUT_PATTERNS: LevelPattern[] = [
   { pattern: /\bout of memory\b/i, level: 'CRITICAL' },
 
   // Error indicators
-  { pattern: /\berror\b/i, level: 'ERROR' },
-  { pattern: /\bfailed\b/i, level: 'ERROR' },
+  { pattern: /(?:^|\[)error(?:\]|:)/i, level: 'ERROR' },
+  { pattern: /(?:^|\[)failed(?:\]|:)/i, level: 'ERROR' },
   { pattern: /\bERR!\b/, level: 'ERROR' },
   { pattern: /\bTypeError\b/, level: 'ERROR' },
   { pattern: /\bReferenceError\b/, level: 'ERROR' },
@@ -42,7 +42,7 @@ const STDOUT_PATTERNS: LevelPattern[] = [
   { pattern: /\bTS\d{4,5}:/, level: 'ERROR' },
 
   // Warning indicators
-  { pattern: /\bwarn(ing)?\b/i, level: 'WARN' },
+  { pattern: /(?:^|\[)warn(ing)?(?:\]|:)/i, level: 'WARN' },
   { pattern: /\bdeprecated\b/i, level: 'WARN' },
 ];
 

@@ -59,7 +59,7 @@ export class Dashboard {
   // -------------------------------------------------------------------------
 
   /** Print the run header and initialize the progress bar. */
-  start(): void {
+  start(completedSoFar: number = 0): void {
     console.log();
     console.log(
       chalk.bold.cyan(' 🚀 foreman v0.1.0') +
@@ -80,7 +80,8 @@ export class Dashboard {
       },
       Presets.shades_classic,
     );
-    this.progressBar.start(this.config.totalTasks, 0, { eta_formatted: '~calculating' });
+    this.completedTasks = completedSoFar;
+    this.progressBar.start(this.config.totalTasks, this.completedTasks, { eta_formatted: '~calculating' });
   }
 
   /** Notify the dashboard that a task is starting. */
@@ -173,9 +174,12 @@ export class Dashboard {
       ? chalk.bold.green('SUCCESS')
       : chalk.bold.red('FAILED');
 
-    const totalDuration = state.finishedAt && state.startedAt
-      ? new Date(state.finishedAt).getTime() - new Date(state.startedAt).getTime()
-      : null;
+    let totalDuration = 0;
+    for (const task of state.tasks) {
+      if (task.durationMs != null) {
+        totalDuration += task.durationMs;
+      }
+    }
 
     console.log(
       `\n  Result: ${runStatus}` +
