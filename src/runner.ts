@@ -60,7 +60,10 @@ export async function runTask(options: RunOptions): Promise<RunResult> {
   let killTimer: ReturnType<typeof setTimeout> | null = null;
 
   // Spawn agy process — prompt via stdin
-  const subprocess = execa('agy', [], {
+  const subprocess = execa('agy', [
+    '--dangerously-skip-permissions',
+    '--sandbox'
+  ], {
     cwd,
     input: prompt,
     // Don't throw on non-zero exit — we handle it ourselves
